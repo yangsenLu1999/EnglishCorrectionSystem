@@ -175,6 +175,20 @@ def read_apple_nonverbpos(dictionary_of_apple_nonverbpos):
     # 返回字典对象
     return dictionary_of_apple_nonverbpos
 
+#读取名词类型表apple_categorydict
+#以word为key，pose为索引值，整体类似与josn格式
+def read_apple_categorydict(dictionary_of_apple_categorydict):
+    sql="SELECT word, id, pos FROM apple_categorydict"
+    mycursor.execute(sql)
+    result = mycursor.fetchall()
+    for row in result:
+        dictionary_of_apple_categorydict[row[0]] = {
+            "wordid": row[1],
+            "pos": row[2]
+        }
+    # 返回字典对象
+    return dictionary_of_apple_categorydict
+
 #单性动词表
 dictionary_of_apple_verbpluspos_empty={}
 dictionary_of_apple_verbpluspos = read_apple_verbpluspos(dictionary_of_apple_verbpluspos_empty)
@@ -224,7 +238,9 @@ dictionary_of_apple_nonverbpos_empty={}
 dictionary_of_apple_nonverbpos = read_apple_nonverbpos(dictionary_of_apple_nonverbpos_empty)
 # print(dictionary_of_apple_nonverbpos)
 
-
+#名词所属的类型表
+dictionary_of_apple_categorydict_empty={}
+dictionary_of_apple_categorydict = read_apple_categorydict(dictionary_of_apple_categorydict_empty)
 
 #检测一个单词是不是单性动词的原型vori_vsimple
 def id_apple_verbpluspos_vori_vsimple(word:str):
@@ -587,6 +603,15 @@ def id_apple_nonverbpos(word:str)->int:
             continue
     return -1
 
+#查看一个名词的类型（object people place time）
+def pos_apple_categorydict(word:str)->str:
+    for i in dictionary_of_apple_categorydict:
+        if word ==i:
+            return dictionary_of_apple_categorydict[i]["pos"]
+        else:
+            continue
+    return "NOT IN DICTIONARY"
+
 if __name__ == '__main__':
     # print(dictionary_of_apple_verbpluspos)
 
@@ -641,3 +666,7 @@ if __name__ == '__main__':
     #查看一个单词是单性动词的原型、三单、现在分词、过去式、过去分词
     splited_sentence = ['be']
     print(id_apple_verbpluspos_vori_vsimple(splited_sentence[0]),id_apple_verbpluspos_vbz_vsimple(splited_sentence[0]),id_apple_verbpluspos_vbg_vsimple(splited_sentence[0]),id_apple_verbpluspos_vbd_vsimple(splited_sentence[0]))
+
+    #查看一个名词的类型（object/time/place/people）
+    splited_sentence=['China']
+    print(pos_apple_categorydict(splited_sentence[0]),type(pos_apple_categorydict(splited_sentence[0])))
