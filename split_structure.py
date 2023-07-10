@@ -5,8 +5,8 @@ import transfer_word
 import attached_data_type
 from collections import deque
 
-#切分主语----------------------------------------------------------------------------------------------------------------
-#抓取非限制性定语从句，只找了一层
+#切分定语----------------------------------------------------------------------------------------------------------------
+#抓取限制性定语从句和非限制性定语从句，只找了一层
 def get_rid_of_restrictive_clause(splited_sentence:list)->tuple:
     splited_sentence=splited_sentence
     clause_list=[]
@@ -35,7 +35,6 @@ def get_rid_of_restrictive_clause(splited_sentence:list)->tuple:
     return  splited_sentence,clause_list
 
 #查找当前列表中最靠前的主语结构
-
 
 #如果是陈述句则主语一定在位于之前 predicate_beginning_index表示谓语的起始索引，可根据切分信号词缩小主语可能的范围
 def use_split_singal_to_split_the_sentence(splited_sentence:list,predicate_beginnning_index:int)->list:
@@ -73,16 +72,98 @@ def use_split_singal_to_split_the_sentence(splited_sentence:list,predicate_begin
         else:
             pass
     return new_splited_sentence
+def traverse_the_list_to_get_the_first_subject_structure(splited_sentence:list)->dict:
+    Subject_Dict = {'begin': 0, 'end': 0, 'subject': None}
+    predicate_beginnning_index=len(splited_sentence)
+    for i in range(len(splited_sentence)):
+     # (1）当前位置是人称代词主格、物主代词名词性、形容词性物主代词、指示代词、不定代词、相互代词
+        if splited_sentence[i] in ['I', 'i', 'you', 'he', 'she', 'it', 'we', 'they'] or splited_sentence[i] in ['mine', 'yours', 'his', 'hers', 'its', 'ours', 'yours', 'theirs'] \
+                or splited_sentence[i] in ['my', 'your', 'his', 'her', 'its', 'our', 'your', 'their'] or \
+                splited_sentence[i] in ['this', 'that', 'these', 'those'] \
+                or splited_sentence[i] in attached_data_type.inde_pron or splited_sentence[i] in attached_data_type.rec_pron \
+                or (i + 1 < len(splited_sentence) and (
+                splited_sentence[i] + splited_sentence[i + 1]) in  attached_data_type.rec_pron):
+                Subject_Dict['begin'] = i
+                Subject_Dict['end'] = i
+                Subject_Dict['subject'] = splited_sentence[i]
+                return Subject_Dict
+    # (2)当前位置是名词，前面是冠词['a','an','the']或量词或形容词性物主代词['my','your','his','her','their','our']或形容词原型或不带more的比较级或不带most的最高级
+        elif mydb.id_apple_moun(splited_sentence[i]) >= 0:
+            # 查看前面的单词组合是否是冠词+副词+形容词+名词
+            if i - 3 >= 0 and splited_sentence[i - 3] in ['a', 'an','the'] and mydb.id_apple_adverb_word_or_comparative_without_more_or_superlative_without_most(splited_sentence[i - 2]) >= 0 \
+                    and mydb.id_apple_adjective_word_or_comparative_without_more_or_superlative_without_most(splited_sentence[i - 1]) >= 0:
+                    Subject_Dict['begin'] = i - 3
+                    Subject_Dict['end'] = predicate_beginnning_index - 1
+                    Subject_Dict['subject'] = splited_sentence[i - 3:predicate_beginnning_index]
+                    return Subject_Dict
+            # 查看前面的单词组合是否是形容词性物主代词+名词
+            elif i - 1 >= 0 and splited_sentence[i - 1] in attached_data_type.adj_poss_pron:
+                Subject_Dict['begin'] = i - 1
+                Subject_Dict['end'] = predicate_beginnning_index - 1
+                Subject_Dict['subject'] = splited_sentence[i - 1:predicate_beginnning_index]
+                return Subject_Dict
+            # 查看前面的单词组合是否是冠词+形容词+名词
+            elif i - 2 >= 0 and splited_sentence[i - 2] in ['a', 'an','the'] and mydb.id_apple_adjective_word_or_comparative_without_more_or_superlative_without_most(splited_sentence[i - 1]) >= 0:
+                Subject_Dict['begin'] = i - 2
+                Subject_Dict['end'] = predicate_beginnning_index - 1
+                Subject_Dict['subject'] = splited_sentence[i - 2:predicate_beginnning_index]
+                return Subject_Dict
+            # 查看前面的单词组合是否是副词+形容词+名词
+            elif i - 2 >= 0 and mydb.id_apple_adverb_word_or_comparative_without_more_or_superlative_without_most(splited_sentence[i- 2]) >= 0 and mydb.id_apple_adjective_word_or_comparative_without_more_or_superlative_without_most(splited_sentence[i - 1]) >= 0:
+                Subject_Dict['begin'] = i - 2
+                Subject_Dict['end'] = predicate_beginnning_index - 1
+                Subject_Dict['subject'] = splited_sentence[i - 2:predicate_beginnning_index]
+                return Subject_Dict
+            # 查看前面的单词组合是否是冠词+名词
+            elif i - 1 >= 0 and splited_sentence[i - 1] in ['a', 'an', 'the']:
+                Subject_Dict['begin'] = i - 1
+                Subject_Dict['end'] = predicate_beginnning_index - 1
+                Subject_Dict['subject'] = splited_sentence[i-1:predicate_beginnning_index]
+                return Subject_Dict
+            # 查看前面的单词组合是否是量词+名词
+            elif i-1 >= 0 and mydb.id_apple_quantifierlemma(splited_sentence[i - 1]) >= 0:
+                Subject_Dict['begin'] = i - 1
+                Subject_Dict['end'] = predicate_beginnning_index - 1
+                Subject_Dict['subject'] = splited_sentence[i-1:predicate_beginnning_index]
+                return Subject_Dict
+            else:
+                Subject_Dict['begin'] = i
+                Subject_Dict['end'] = predicate_beginnning_index - 1
+                Subject_Dict['subject'] = splited_sentence[i:predicate_beginnning_index]
+                return Subject_Dict
+    # （3）当前位置是to，且后一位是单性动词原型或多性动词原型
+        elif splited_sentence[i] == 'to' and (mydb.id_apple_verbpluspos_vori_vsimple(splited_sentence[i + 1]) >= 0 or mydb.id_apple_verbpluspos_double_vori_vcomplex(splited_sentence[i + 1]) >= 0):
+            Subject_Dict['begin'] = i
+            Subject_Dict['end'] = predicate_beginnning_index - 1
+            Subject_Dict['subject'] = splited_sentence[i:predicate_beginnning_index]
+            return Subject_Dict
+    # （4）当前位置是单性动词的现在分词或多性动词的现在分词
+        elif mydb.id_apple_verbpluspos_vbg_vsimple(splited_sentence[i]) >= 0 or mydb.id_apple_verbpluspos_double_vbg_vcomplex(splited_sentence[i]) >= 0:
+            Subject_Dict['begin'] = i
+            Subject_Dict['end'] = predicate_beginnning_index - 1
+            Subject_Dict['subject'] = splited_sentence[i:predicate_beginnning_index]
+            return Subject_Dict
+    # (5)当前位置是关联词
+        elif judegclause.is_a_conj_or_not(splited_sentence, i):
+            Subject_Dict['begin'] = i
+            Subject_Dict['end'] = predicate_beginnning_index - 1
+            Subject_Dict['subject'] = splited_sentence[i:predicate_beginnning_index]
+            return Subject_Dict
+        else:
+            pass
+    return Subject_Dict
 
 #抓取句子中的主语,如果是陈述句则主语一定在位于之前 predicate_beginning_index表示谓语的起始索引。
-def get_subject_DictList(splited_sentence:list,predicate_beginnning_index:int)->dict:
+def get_subject_Dict(splited_sentence:list)->dict:
+    predicate_beginnning_index=len(splited_sentence)
     Subject_Index_Dict = {'begin': 0, 'end': 0, 'subject': None}
     #(1)查看谓语前有无逗号。
     #当前版本不考虑“插入语”，非限制性定语从句同时是插入语解决方案：剔除“，”+“非限制性定语从句”+“，”三部分后，处理
     get_Subject_splited_sentence=splited_sentence[0:predicate_beginnning_index-1]
     #将句子中所有的单词变成小写
-    new_splited_sentence =transfer_word.transfer_every_word_in_list_to_lower(get_Subject_splited_sentence)
-    # 若谓语前无逗号，主语是离开谓语最远的主语组成结构
+    splited_sentence =transfer_word.transfer_every_word_in_list_to_lower(get_Subject_splited_sentence)
+
+    # 1)若谓语前无逗号，主语是离开谓语最远的主语组成结构
     if "," not in new_splited_sentence:
         for i in range(len(new_splited_sentence)):
             #(1）当前位置是人称代词主格、物主代词名词性、形容词性物主代词、指示代词、不定代词、相互代词
@@ -152,29 +233,60 @@ def get_subject_DictList(splited_sentence:list,predicate_beginnning_index:int)->
                 Subject_Index_Dict['subject']=splited_sentence[i:predicate_beginnning_index-1]
             else:
                 pass
-    # 若谓语前有逗号，主语是最后逗号后的第一个主语组成结构
+    # 2)若谓语前有逗号，主语是最后逗号后的第一个主语组成结构
     else:
         right_comma_index=-1
         for i in range(len(new_splited_sentence) - 1, -1, -1):
             if ',' in new_splited_sentence[i]:
-                print(f"列表中最右边包含逗号的元素的索引为 {i}")
+                # print(f"列表中最右边包含逗号的元素的索引为 {i}")
                 right_comma_index=i
                 break
             else:
-                print("列表中没有包含逗号的元素")
-        right_comma_to_predicate=new_splited_sentence[right_comma_index:]
-
-
+                continue
+                # print("列表中没有包含逗号的元素")
+        right_comma_to_predicate_before_list=new_splited_sentence[right_comma_index:]
+        Subject_Index_Dict=traverse_the_list_to_get_the_first_subject_structure(right_comma_to_predicate_before_list)
+        return Subject_Index_Dict
     return Subject_Index_Dict
 
-#抓取句子中的宾语和表语，表语认为是系动词后紧跟着的一位或几位，宾语认为是谓语结构紧跟着的下一位或下几位。
-def get_predicative_and_object_DictList(splited_sentence:list)->list:
-    predicative_and_object_DictList=[]
-    pass
-    return predicative_and_object_DictList
+#切分表语----------------------------------------------------------------------------------------------------------------
+#抓取句子中的宾语和表语，表语认为是系动词后紧跟着的一位或几位。
+#切分宾语----------------------------------------------------------------------------------------------------------------
+#抓取句子中的宾语，宾语认为是谓语结构紧跟着的下一位或下几位。st)->dict:
+def get_predicative_Dict(structure_splited_sentence:list,predicate:list):
+    predicative_Dict={['beginning']:-1,['end']:-1,['subject']:None}
+    object_Dict = {['beginning']: -1, ['end']: -1, ['subject']: None}
+    #1）谓语结构是单个的系动词，后面的是表语
+    if predicate[-1] in ['am','is','are','was','were','been','appear','appears','appearing','appeared','become','becomes','becoming','became','get','gets','getting','got','gotten','look','looks','looking','looked','remain','remains','remaining','remained','seem','seemes','seeming','seemed']:
+        #表语是形容词+名词
+        #表语是副词+形容词+名词
+        #表语是形容词
+        #表语是to+单性动词原型或多性动词原型
+        #表语是副词+to+单性动词原型或多性动词原型
+        #表语是单性动词的现在分词或多性动词的现在分词
+        #表语是副词+单性动词的现在分词或多性动词的现在分词
+        #表语是单性动词的过去分词或多性动词的过去分词
+        #表语是副词+单性动词的过去分词或多性动词的过去分词
+        #表语是介词结构
+        #表语是副词+介词结构
+        #表语是表语从句
+        #表语是here或there
 
-#抓取句子中的定语（包括普通定语和限制性定语从句）
-# def get
+
+    #2）谓语结构是加to的系动词，后面是表语
+    elif predicate[-1] in ['to']:
+
+    #3）谓语结构是实义动词或者及物动词、不及物动词，后面是宾语
+    else:
+        #宾语是名词
+        #宾语是形容词+名词
+        #宾语是冠词+名词
+        #宾语是指示代词+名词
+        #宾语是副词+单性动词的现在分词或多性动词的现在分词
+        #宾语是宾语从句
+        pass
+
+    return predicative_Dict,object_Dict
 
 if __name__ == '__main__':
     sentence = "a book,which I want to buy in the city where I spent my childhood."
